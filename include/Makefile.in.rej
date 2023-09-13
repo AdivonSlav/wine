@@ -1,0 +1,10 @@
+--- include/Makefile.in
++++ include/Makefile.in
+@@ -790,6 +790,7 @@ SOURCES = \
+ 	windows.media.devices.idl \
+ 	windows.media.idl \
+ 	windows.media.speechsynthesis.idl \
++	windows.networking.connectivity.idl \
+ 	windows.security.cryptography.idl \
+ 	windows.security.exchangeactivesyncprovisioning.idl \
+ 	windows.storage.streams.idl \

@@ -961,6 +961,19 @@ struct hostent * WINAPI gethostbyname( const char *name )
         SetLastError( ret );
         return ret ? NULL : params.host;
     }
+    
+    char sgi[64];
+    /* default -- if star citizen and url is modules-cdn.eac-prod.on.epicgames.com, block */
+    if (GetEnvironmentVariableA("SteamGameId", sgi, sizeof(sgi)) && !strcmp(sgi, "starcitizen"))
+    {
+        TRACE( "name %s, matched sgi %s\n", debugstr_a(name), debugstr_a(sgi) );
+        if (name && !strcmp(name, "modules-cdn.eac-prod.on.epicgames.com"))
+        {
+            SetLastError( WSAHOST_NOT_FOUND );
+            return NULL;
+        }
+    }
+    TRACE( "name %s, unmatched sgi %s\n", debugstr_a(name), debugstr_a(sgi) );
 
     if (host && host->h_addr_list[0][0] == 127 && strcmp( name, "localhost" ))
     {

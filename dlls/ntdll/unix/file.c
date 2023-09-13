@@ -3399,6 +3399,18 @@ static NTSTATUS lookup_unix_name( const WCHAR *name, int name_len, char **buffer
     if (is_unix && (disposition == FILE_OPEN || disposition == FILE_OVERWRITE))
         return STATUS_OBJECT_NAME_NOT_FOUND;
 
+
+    static char *skip_search = NULL;
+    if (skip_search == NULL)
+    {
+        const char *env_var;
+
+				skip_search = getenv("WINE_NO_OPEN_FILE_SEARCH");
+        WARN("Disabling case insensitive search for opening files");
+    }
+    if (skip_search && strcasestr(unix_name, skip_search) && disposition == FILE_OPEN)
+        return STATUS_OBJECT_NAME_NOT_FOUND;
+
     /* now do it component by component */
 
     while (name_len)

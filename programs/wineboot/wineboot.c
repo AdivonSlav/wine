@@ -77,6 +77,7 @@
 #include <shlwapi.h>
 #include <shellapi.h>
 #include <setupapi.h>
+#include <wininet.h>
 #include <newdev.h>
 #include "resource.h"
 
@@ -919,6 +920,13 @@ static void create_volatile_environment_registry_key(void)
     RegCloseKey( hkey );
 }
 
+static void create_proxy_settings(void)
+{
+    HINTERNET inet;
+    inet = InternetOpenA( "Wine", INTERNET_OPEN_TYPE_PRECONFIG, NULL, NULL, 0 );
+    if (inet) InternetCloseHandle( inet );
+}
+
 /* Performs the rename operations dictated in %SystemRoot%\Wininit.ini.
  * Returns FALSE if there was an error, or otherwise if all is ok.
  */
@@ -1344,6 +1352,37 @@ static HWND show_wait_window(void)
     return hwnd;
 }
 
+static INT_PTR CALLBACK wait_dlgproc( HWND hwnd, UINT msg, WPARAM wp, LPARAM lp )
+{
+    switch (msg)
+    {
+    case WM_INITDIALOG:
+        {
+            DWORD len;
+            WCHAR *buffer, text[1024];
+            const WCHAR *name = (WCHAR *)lp;
+            HICON icon = LoadImageW( 0, (LPCWSTR)IDI_WINLOGO, IMAGE_ICON, 48, 48, LR_SHARED );
+            SendDlgItemMessageW( hwnd, IDC_WAITICON, STM_SETICON, (WPARAM)icon, 0 );
+            SendDlgItemMessageW( hwnd, IDC_WAITTEXT, WM_GETTEXT, 1024, (LPARAM)text );
+            len = lstrlenW(text) + lstrlenW(name) + 1;
+            buffer = HeapAlloc( GetProcessHeap(), 0, len * sizeof(WCHAR) );
+            swprintf( buffer, len, text, name );
+            SendDlgItemMessageW( hwnd, IDC_WAITTEXT, WM_SETTEXT, 0, (LPARAM)buffer );
+            HeapFree( GetProcessHeap(), 0, buffer );
+        }
+        break;
+    }
+    return 0;
+}
+
+static HWND show_wait_window(void)
+{
+    HWND hwnd = CreateDialogParamW( GetModuleHandleW(0), MAKEINTRESOURCEW(IDD_WAITDLG), 0,
+                                    wait_dlgproc, (LPARAM)prettyprint_configdir() );
+    ShowWindow( hwnd, SW_SHOWNORMAL );
+    return hwnd;
+}
+
 static HANDLE start_rundll32( const WCHAR *inf_path, const WCHAR *install, WORD machine )
 {
     WCHAR app[MAX_PATH + ARRAY_SIZE(L"\\rundll32.exe" )];
@@ -1690,6 +1729,7 @@ int __cdecl main( int argc, char *argv[] )
             case 'h': usage(0); break;
             default:  usage(1); break;
             }
+            DestroyWindow( hwnd );
         }
     }
 
@@ -1731,6 +1771,7 @@ int __cdecl main( int argc, char *argv[] )
     if (init || update) update_wineprefix( update );
 
     create_volatile_environment_registry_key();
+    create_proxy_settings();
 
     ProcessRunKeys( HKEY_LOCAL_MACHINE, L"RunOnce", TRUE, TRUE );
 

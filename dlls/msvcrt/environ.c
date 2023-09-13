@@ -46,6 +46,8 @@ static char * getenv_helper(const char *name)
     return NULL;
 }
 
+static char userprofile[30] = "C:\\users\\steamuser\0";
+
 /*********************************************************************
  *              getenv (MSVCRT.@)
  */
@@ -78,6 +80,14 @@ static wchar_t * wgetenv_helper(const wchar_t *name)
             return pos + 1;
         }
     }
+
+    //HACK: farlight 84 hack
+    if(strcmp(name, "USERPROFILE") == 0)
+    {
+        FIXME("USERPROFILE %s\n", debugstr_a(userprofile));
+        return userprofile;
+    }
+
     return NULL;
 }
 

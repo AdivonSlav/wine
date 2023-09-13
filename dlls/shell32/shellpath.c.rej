@@ -1,0 +1,82 @@
+--- dlls/shell32/shellpath.c
++++ dlls/shell32/shellpath.c
+@@ -3062,8 +3243,6 @@ static HRESULT _SHRegisterFolders(HKEY hRootKey, HANDLE hToken,
+  LPCWSTR szUserShellFolderPath, LPCWSTR szShellFolderPath, const UINT folders[],
+  UINT foldersLen)
+ {
+-    static const WCHAR WineVistaPathsW[] = {'_','_','W','i','n','e','V','i','s','t','a','P','a','t','h','s',0};
+-
+     const WCHAR *szValueName;
+     WCHAR buffer[40];
+     UINT i;
+@@ -3072,7 +3251,6 @@ static HRESULT _SHRegisterFolders(HKEY hRootKey, HANDLE hToken,
+     HKEY hUserKey = NULL, hKey = NULL;
+     DWORD dwType, dwPathLen;
+     LONG ret;
+-    DWORD already_vista_paths = 0;
+ 
+     TRACE("%p,%p,%s,%p,%u\n", hRootKey, hToken,
+      debugstr_w(szUserShellFolderPath), folders, foldersLen);
+@@ -3086,12 +3264,6 @@ static HRESULT _SHRegisterFolders(HKEY hRootKey, HANDLE hToken,
+         if (ret)
+             hr = HRESULT_FROM_WIN32(ret);
+     }
+-
+-    /* check if the registry has already been updated to the vista+ style paths */
+-    dwPathLen = sizeof(already_vista_paths);
+-    RegQueryValueExW(hUserKey, WineVistaPathsW, NULL, &dwType,
+-            (LPBYTE)&already_vista_paths, &dwPathLen);
+-
+     for (i = 0; SUCCEEDED(hr) && i < foldersLen; i++)
+     {
+         dwPathLen = MAX_PATH * sizeof(WCHAR);
+@@ -3104,10 +3276,9 @@ static HRESULT _SHRegisterFolders(HKEY hRootKey, HANDLE hToken,
+             szValueName = &buffer[0];
+         }
+ 
+-        if (!already_vista_paths ||
+-                RegQueryValueExW(hUserKey, szValueName, NULL, &dwType,
+-                    (LPBYTE)path, &dwPathLen) ||
+-                (dwType != REG_SZ && dwType != REG_EXPAND_SZ))
++        if (RegQueryValueExW(hUserKey, szValueName, NULL,
++         &dwType, (LPBYTE)path, &dwPathLen) || (dwType != REG_SZ &&
++         dwType != REG_EXPAND_SZ))
+         {
+             *path = '\0';
+             if (CSIDL_Data[folders[i]].type == CSIDL_Type_User)
+@@ -3148,11 +3319,6 @@ static HRESULT _SHRegisterFolders(HKEY hRootKey, HANDLE hToken,
+              hToken, SHGFP_TYPE_DEFAULT, path);
+         }
+     }
+-
+-    already_vista_paths = 1;
+-    RegSetValueExW(hUserKey, WineVistaPathsW, 0, REG_DWORD,
+-            (LPBYTE)&already_vista_paths, sizeof(already_vista_paths));
+-
+     if (hUserKey)
+         RegCloseKey(hUserKey);
+     if (hKey)
+@@ -3293,23 +3459,6 @@ static HRESULT create_extra_folders(void)
+         hr = SHGetFolderPathAndSubDirW(0, CSIDL_APPDATA | CSIDL_FLAG_CREATE, NULL,
+                                        SHGFP_TYPE_DEFAULT, L"Microsoft\\Windows\\Themes", path);
+     }
+-
+-
+-    /* Proton HACK: In older Proton versions, duplicate Stuff directories were
+-     * created at both %PROFILE%\Music and %PROFILE\Documents\Music. Due to
+-     * some bugs when downgrading to those older Proton versions, create those
+-     * missing Documents directories here, too. */
+-    SHGetFolderPathAndSubDirW(0, CSIDL_PERSONAL | CSIDL_FLAG_CREATE, NULL,
+-                                   SHGFP_TYPE_DEFAULT, L"Downloads", path);
+-    SHGetFolderPathAndSubDirW(0, CSIDL_PERSONAL | CSIDL_FLAG_CREATE, NULL,
+-                                   SHGFP_TYPE_DEFAULT, L"Music", path);
+-    SHGetFolderPathAndSubDirW(0, CSIDL_PERSONAL | CSIDL_FLAG_CREATE, NULL,
+-                                   SHGFP_TYPE_DEFAULT, L"Pictures", path);
+-    SHGetFolderPathAndSubDirW(0, CSIDL_PERSONAL | CSIDL_FLAG_CREATE, NULL,
+-                                   SHGFP_TYPE_DEFAULT, L"Templates", path);
+-    SHGetFolderPathAndSubDirW(0, CSIDL_PERSONAL | CSIDL_FLAG_CREATE, NULL,
+-                                   SHGFP_TYPE_DEFAULT, L"Videos", path);
+-
+     return hr;
+ }
+ 
